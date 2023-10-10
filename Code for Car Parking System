@@ -1,0 +1,415 @@
+import os
+import time
+
+#Data Structure of parking space
+spaces=[]
+available_spaces = 0
+total_spaces = 0
+streets = 0
+
+space_count = 0
+border = ''
+
+linux=0
+
+#Class Car is creaated to store the type , number plate string and entry time of the car
+class Car:
+    def __init__(self,c_type, nplate):
+        self.type = c_type
+        self.nplate = nplate
+        self.entry_time = time.time()
+
+#the function get_type returns an integer value which represents the type of car that is about to be parked
+#whereas the function get_type_string returns the actual string of the type of car
+
+    def get_type(self):
+        return self.type
+    
+    def get_type_string(self):
+        return 'Sedan' if self.type==1 else 'SUV' if self.type == 2 else 'Micro'
+    
+    #returns the number plate of the car
+    def get_nplate(self):
+        return self.nplate
+    
+    #returns the time in which the car has entered the parking space
+    def get_entry_time(self):
+        return self.entry_time
+    
+    #chosen to set epoch time manually
+    def set_entry_time(self,new_time):
+        self.entry_time = new_time
+    
+    #object car contains the type of the car,number plate and entry time as attributes
+    def get_car(self):
+        return self.type, self.nplate, self.entry_time
+    
+#Class Space is created to stoe the vacant and occupied status of slot
+class Space:
+    def __init__(self):
+        self.car = None
+        self.occupied = False 
+        #before a car enters the spot, its attributes do not matter and it does not occupy the space
+        
+    def add_car(self,car):
+        self.car=car
+        self.occupied = True
+        #when a new car enters the space an object of its own is created and it occupies the space
+    
+    def remove_car(self):
+        c_exit = self.car
+        self.car = None
+        self.occupied = False
+        return c_exit
+        #when a car exits the space, an empty object is returned in its place and the occupied status is converted to false
+    
+    #returns all the attributes stores in the object car
+    def car_info(self):
+        return self.car
+     
+     #returns whether the space is occupied or available for parking   
+    def is_available(self):
+        return self.occupied
+    
+#Functions being called to allot the available parking spot to the next car in line
+def print_street(street):
+    output =''
+    output +='|'
+    for s in range(space_count*street,space_count*(street+1)):
+        if not spaces[s].is_available():
+            output += '[ ]'
+        else:
+            output += '['
+            output += 'e' if spaces[s].car_info().get_type() == 1 \
+              else 'u' if spaces[s].car_info().get_type() == 2 \
+              else 'm'
+            #here 'e' represents Sedan,'u' represents SUV and 'm'represents Micro
+            output +=']'
+        if s<space_count *(street+1)-1:
+            output += ' '
+    output +="|"
+    return output
+    #returns all the streets of parking and displays which spaces are pre-occupied
+
+#Function being called to know the availability of all spaces
+def display_lot():
+    global spaces, available_spaces,total_spaces,streets
+    
+    output = "SLOTS AVAILABLE: " + str(available_spaces) + "\n"
+    
+    output += border
+    
+    for street in range(streets):
+        output += print_street(street)+'\n' #prints all streets of the parking slot with all spaces
+    
+    output +=border
+    
+    if linux ==1:
+        os.system('clear')
+    print(output)
+
+#Function is being called for the user to know the street numbers and a choice is given to him/her to choose where to park
+def display_street_selection():
+  global spaces, available_spaces, total_spaces,streets
+  output = 'SPOTS AVAILABLE:'+ str(available_spaces) + '\n'
+
+  output += border
+  for street in range(streets):
+    output += print_street(street)
+    output += '<' + str(street) + '\n'
+  output += border
+
+  if linux ==1 :
+    os.system("clear")
+  print(output)
+
+#Function being called to select a particular spot from the selected street
+def display_space_selection(street):
+    global spaces, available_spaces, total_spaces, streets
+
+    output = "VIEWING STREET: " + street + "\n"
+
+    output += border
+    output += print_street(int(street)) + "\n"
+
+    output += " "
+    for count in range(space_count): #the selected space number should be within range of row numbers
+        if count < 10:
+            output += "<" + str(count) + "> "
+        else:
+            output += "<" + str(count) + ">"
+
+    output += "\n"
+    output += border
+
+    if linux == 1:
+        os.system("clear")
+    print(output)
+
+    return space_count
+
+#Function being called when a new car enters the space
+def enter_car(c_type,nplate,street,space):
+    global spaces, available_spaces, total_spaces, streets
+    
+    if available_spaces==0:
+        display_lot()
+        print("Sorry! There are No more parking slot available in this space.")
+        time.sleep(2) #timer would be cancelled and restarted at another slot
+        return
+    if spaces[(int(street)*space_count) +int(space)].is_available():
+        display_space_selection(street)#slot not vacant
+        print("Sorry! This lot is already occupied.")
+        time.sleep(2)
+        return -1
+    #checking for duplicate number plates
+    for np in spaces:
+        if np.is_available():
+            if np.car_info().get_nplate() == nplate:
+                display_lot()
+                print("This Car is already parked in the Lot")
+                time.sleep(2)
+                return
+    #When Spaces are available and spot is chosen,the time of entry and space of parking are recorded
+    new_car = Car(c_type, nplate)
+    spaces[(int(street) * space_count) + int(space)].add_car(new_car)
+    available_spaces -= 1
+    display_lot()
+    print("Car has entered into the parking space!\n"
+          
+          "Time Entered: " + str(time.strftime('%I:%M %p',time.localtime(new_car.get_entry_time()))))
+    time.sleep(2)
+
+    return new_car
+
+#When Car has entered into the Space and time has been recorded,the fare has to be calculated on an hourly basis. Minimun charge is applied for first one hour
+def fare_calculation(car):
+    time_spent = time.time() - car.get_entry_time()
+    if time_spent < 3600:
+        hrs = 1
+    else:
+        hrs = int(time_spent / 3600)+1
+
+    
+    if car.get_type() == 1:
+        price = hrs *50
+    elif car.get_type() == 2:
+        price = hrs *100
+    else:
+        price = hrs *25
+
+    total = "Car Removed!\n" \
+            "Your Total for " + "{:.2f}".format(hrs) + " hours is Rs." + "{:.2f}".format(price)
+
+    return total
+ 
+#Function called to exit the space
+def exit_lot(street, space):
+    global available_spaces
+
+    if not spaces[(int(street) * space_count) + int(space)].is_available():
+        display_space_selection(street)
+        print("Error: No Car In Space")
+        time.sleep(2)
+        return
+
+    removed = spaces[(int(street) * space_count) + int(space)].remove_car()
+    available_spaces += 1
+
+   #Fare Calculation
+    display_lot()
+    print(fare_calculation(removed))
+    time.sleep(2)
+    
+#Function To view the Information of an already parked car
+def view_car(street, space):
+
+#First we need to check if the space has a parked car or not   
+   if not spaces[(int(street) * space_count) + int(space)].is_available():
+        display_space_selection(street)
+        print("Error: No Car In Space")
+        time.sleep(2)
+   else:
+        car = spaces[(int(street) * space_count) + int(space)].car_info()
+        display_space_selection(street)
+        input("Car Type: " + car.get_type_string() + "\n" " Number Plate: " + car.get_nplate() + "\n""Entry Time: " + str(time.strftime('%m-%d-%Y %I:%M %p',time.localtime(car.get_entry_time()))) + "\n""\nPress Enter to return to menu")
+        
+#Function being written to display the commands where all functions can be called according to choice
+
+def command_handler(command):
+    # command to park a car
+    if command == "P":
+        while True:
+            display_lot()
+            new_type = input("Enter Car Type:\n"
+                             "1. Sedan\n"
+                             "2. Suv\n"
+                             "3. Micro\n"
+                             ">")
+            if new_type == "1" or new_type == "2" or new_type == "3":
+                break
+
+        # program will accept any valid string as number plate
+        display_lot()
+        new_nplate = input("Enter New Car Number Plate:\n" ">")
+
+        total_val = -1
+        while total_val == -1:
+            while True:
+                display_street_selection()
+                street = input("Select Street to Park In:\n"
+                            ">")
+                if street.isnumeric():
+                    if int(street) < streets:
+                        break
+            while True:
+                display_space_selection(street)
+                space = input("Select Space to Park In:\n" ">")
+                if space.isnumeric():
+                    if int(space) < space_count:
+                        break
+            total_val = enter_car(int(new_type), new_nplate, street, space)
+
+    # Exit the parking space and calculate the fare
+    elif command == "E":
+
+        while True:
+            display_street_selection()
+            street = input("Select Street of Vehicle:\n" ">")
+            if street.isnumeric():
+                if int(street) < streets:
+                    break
+
+        while True:
+            display_space_selection(street)
+            space = input("Select Space of Vehicle:\n" ">")
+            if space.isnumeric():
+                if int(space) < space_count:
+                    break
+        exit_lot(street, space)
+
+    # View information of parked vehicle
+    elif command == "V":
+
+        while True:
+            display_street_selection()
+            street = input("Select Street to View:\n"">")
+            if street.isnumeric():
+                if int(street) < streets:
+                   break
+
+        while True:
+            display_space_selection(street)
+            space = input("Select Space to View:\n" ">")
+            if space.isnumeric():
+                if int(space) < space_count:
+                    break
+        view_car(street, space)
+
+    # Displays the current Prices of the parking space
+    elif command == "R":
+        display_lot()
+        input("Current Parking Rates:\n"
+              "Sedan - Rs-50/hour\n"
+              "SUV - Rs-100/hour\n"
+              "Micro  - Rs-25/hour\n"
+              "\nPress Enter to return to menu")
+
+    # Quit the program
+    elif command == "Q":
+        return
+
+    # display an error if an invalid command is given
+    else:
+        display_lot()
+        print("Error: Invalid Command")
+        time.sleep(1)
+
+def read_config():
+  global spaces, total_spaces, available_spaces, streets, linux,space_count,border
+
+  config= open('config.txt','r')
+  while True:
+    line = config.readline()
+
+    if line.find('total_spaces')!=-1:
+      total_spaces=int(line[13:16])
+      available_spaces=total_spaces
+    elif line.find('streets')!= -1:
+      streets=int(line[5:7])
+    elif line.find('linux')!=-1:
+      linux=int(line[6:7])
+      #testing the demo code for already occupied cars
+    elif line.find("demo_model")!=-1:
+      if int(line[11:12]) == 1:
+        demo_model()
+        break
+      else:
+        for i in range(total_spaces):
+          spaces.append(Space())
+
+        space_count=int(total_spaces/streets)
+
+        border='|'
+        for i in range(space_count -1):
+          for j in range(4):
+            border +='-'
+        border += '---|\n'
+        break
+  config.close()  
+
+
+def demo_model():
+    global spaces, total_spaces, available_spaces, streets, space_count, border
+
+    for i in range(total_spaces):
+        spaces.append(Space())
+      
+    available_spaces = 20
+    total_spaces = 20
+    streets = 4
+
+    space_count = int(total_spaces / streets)
+
+    border = "|"
+    for i in range(space_count - 1):
+        for j in range(4):
+            border += "-"
+    border += "---|\n"
+
+    c1 = enter_car(1, "abc-123", 0, 3)
+    c2 = enter_car(3, "Kyvalya", 1, 2)
+    c3 = enter_car(2, "Comp_Science", 2, 0)
+    c4 = enter_car(1, "batch2019", 3, 1)
+    c5 = enter_car(2, "xyz", 2, 4)
+
+    c1.set_entry_time(1620561600)
+    c2.set_entry_time(1620570600)
+    c3.set_entry_time(1620577800)
+    c4.set_entry_time(1620576000)
+    c5.set_entry_time(1620586800)
+
+
+
+
+#Main function calls the commands and executes the program accordingly    
+def main():
+
+  read_config()
+    # begin accepting user commands
+  command = ""
+  while command != "Q":
+    display_lot()
+    print("Please Select An Option:\n"
+              "P - Park a Car\n"
+              "E - Exit the Lot\n"
+              "V - View a Parked Car\n"
+              "R - Display Car Parking Prices\n"
+              "Q - Quit Application\n")
+
+    command = input(">")
+    command_handler(command)
+  
+main()
+
+
